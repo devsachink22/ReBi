@@ -1,0 +1,489 @@
+from tkinter import*
+from tkinter import ttk
+from tkinter import messagebox
+import mysql.connector
+import pymysql
+obj = Tk()
+obj.geometry("960x570")
+obj.configure(bg='light blue')
+obj.title("Cafe's billing system")
+def quantityl(a,b,c):
+    global quantityVar
+    global costVar
+    global itemrate
+    quantity = quantityVar.get()
+    if quantity != "":
+        try:
+            quantity = float(quantity)
+            cost = quantity*itemrate
+            quantityVar.set("%.2f"%quantity)
+            costVar.set("%.2f"%cost)
+        except ValueError:
+            quantity = (quantity[:-1])
+            quantityVar.set(quantity)
+    else:
+        quantity = 0
+        quantityVar.set("%.2f"%quantity)
+def costl(a,b,c):
+    global quantityVar
+    global costVar
+    global itemrate
+    cost = costVar.get()
+    if cost != "":
+        try:
+            cost = float(cost)
+            quantity = cost/itemrate
+            quantityVar.set("%.2f"%quantity)
+            costVar.set("%.2f"%cost)
+        except ValueError:
+            cost = costVar[:-1]
+            costVar.set(cost)
+    else:
+        cost = 0
+        costVar.set(cost)
+#==================================loginvariable=======================================
+usernameVar = StringVar()
+passwordVar = StringVar()
+#===================================mainwindowvariable=================================
+options = []
+rateDict = {}
+itemVariable = StringVar()
+values = StringVar()
+quantityVar = StringVar()
+quantityVar.trace('w', quantityl)
+itemrate = 2
+rateVar = StringVar()
+rateVar.set("%.2f"%itemrate)
+costVar = StringVar()
+costVar.trace('w', costl)
+TotalVar = StringVar()
+t = StringVar()
+t2 = StringVar()
+t3 = StringVar()
+t4 = StringVar()
+naVar = StringVar()
+phoneVar = StringVar()
+addVar = StringVar()
+emailVar = StringVar()
+
+#=========================additemsvariable=============================================
+storeOptions = ['frozen','fresh']
+nameVar = StringVar()
+rateVar2 = StringVar()
+typeVar = StringVar()
+storeVar = StringVar()
+storeVar.set(storeOptions[0])
+itemList = list()
+totalCost = 0.0
+totalCostVar = StringVar()
+totalCostVar.set("{}".format(totalCost))
+updateItemId = ""
+#=========================maintree view=================================================
+recieptV = ttk.Treeview(height=15, column=('rate','quantity','cost'))
+#=========================update view==================================================
+updateV = ttk.Treeview(height=12, column=('item name', 'quantity', 'cost', 'type'))
+#========================add to list function===========================================
+def add_to_list():
+    global itemVariable
+    global quantityVar
+    global itemrate
+    global costVar
+    global itemList
+    global totalCost
+    global totalCostVar
+    itemname = itemVariable.get()
+    quantity = quantityVar.get()
+    cost = costVar.get()
+    conn = pymysql.connect(host="localhost", user="root", password="root", database="billing system")
+    cursor = conn.cursor()
+    totalCost += float(cost)
+    query = "INSERT INTO bill(name,quantity,rate,cost) VALUES('{}','{}','{}','{}')".format(itemname, quantity, itemrate, cost)
+    cursor.execute(query)
+    conn.commit()
+    conn.close()
+    listDict= {"name": itemname, "rate": itemrate, "quantity": quantity, "cost": cost}
+    itemList.append(listDict)
+    totalCost += float(cost)
+    quantityVar.set("0")
+    costVar.set("0")
+    costVar.set("0")
+    updateTV()
+    totalCostVar.set("{}".format(totalCost))
+#===========================double click update function==================================
+def ondoubleclick(event):
+    global nameVar
+    global rateVar2
+    global typeVar
+    global storeVar
+    global updateItemId
+    item = updateV.selection()
+    updateItemId = updateV.item(item, "text")
+    items_detail = updateV.item(item, "values")
+    item_index = storeOptions.index(items_detail[3])
+    typeVar.set(items_detail[2])
+    rateVar2.set(items_detail[1])
+    nameVar.set(items_detail[0])
+    storeVar.set(storeOptions[item_index])
+# ==========================update bill view=============================================
+def updateTV():
+    records = recieptV.get_children()
+    for element in records:
+        recieptV.delete(element)
+    for row in itemList:
+        recieptV.insert('', 'end', text=row['name'], values=(row["rate"],row["quantity"],row["cost"]))
+#==========================get item list after update ================================================
+def getitemlist():
+    records = updateV.get_children()
+    for element in records:
+        updateV.delete(element)
+    conn = pymysql.connect(host="localhost", user="root", password="root", database="billing system")
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+    query = "SELECT * FROM itemlist"
+    cursor.execute(query)
+    date = cursor.fetchall()
+    for row in date:
+        updateV.insert('', 'end', text=row['nameid'], values=(row['name'], row['rate'], row['type'], row['storetype']))
+    updateV.bind("<Double-1>", ondoubleclick)
+    conn.close()
+#=============================generating receipt===========================================
+
+#================= funtion to remove all widget=======================================
+def removew():
+    global obj
+    for widget in obj.winfo_children():
+        widget.grid_forget()
+        widget.place_forget()
+#========================update bill dat===============================================
+def updatebilldata():
+    records = recieptV.get_children()
+    for element in records:
+        recieptV.delete(element)
+    conn = pymysql.connect(host="localhost", user="root", password="root", database="billing system")
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+    query = "SELECT * FROM bill"
+    cursor.execute(query)
+    data = cursor.fetchall()
+    for row in data:
+        recieptV.insert('', 'end', text=row['name'], values=(row["rate"],row["quantity"],row["cost"]))
+    conn.close()
+
+#===========================login function=========================================
+def loginf():
+    global usernameVar
+    global passwordVar
+    username = usernameVar.get()
+    password = passwordVar.get()
+    conn = mysql.connector.connect(host="localhost", user="root", password="root", database="billing system")
+    mycursor=conn.cursor()
+    query = "SELECT * FROM users WHERE username='{}' and password='{}'".format(username, password)
+    mycursor.execute(query)
+    data=mycursor.fetchall()
+    admin=False
+    for row in data:
+        admin = True
+    conn.close()
+    if admin:
+        readalldata()
+    else:
+        messagebox.showerror("invalid user", "credential enters are invalid")
+#========================function to read data from list of items================================
+def readalldata():
+    global options
+    global rateDict
+    global itemVariable
+    global itemrate
+    global rateVar
+    options = []
+    rateDict = {}
+    conn = pymysql.connect(host="localhost", user="root", password="root", database="billing system")
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+    query = "SELECT * FROM itemlist"
+    cursor.execute(query)
+    data = cursor.fetchall()
+    count = 0
+    for row in data:
+        count += 1
+        options.append(row['nameid'])
+        rateDict[row['nameid']] = row['rate']
+        itemVariable.set(options[0])
+        itemrate=(rateDict[options[0]])
+    conn.close()
+    rateVar.set(itemrate)
+    if count == 0:
+        removew()
+        add_items()
+    else:
+        removew()
+        mainwindow()
+#==================menu's combination with rate========================================
+def menulistener(event):
+    global itemVariable
+    global rateDict
+    global itemrate
+    item = itemVariable.get()
+    itemrate = int(rateDict[item])
+    rateVar.set("%.2f"%itemrate)
+#=====================add item function=======================================
+def additembl():
+    removew()
+    add_items()
+#======================updatebutton  function in main window==========================
+def movetoupdate():
+    removew()
+    update_items()
+def updatebl():
+    removew()
+    showmenu()
+#=====================back function===================================================
+def logoutbl():
+    removew()
+    adminlogin()
+    usernameVar.set("")
+    passwordVar.set("")
+#========================reset function===============================================
+def resetbl():
+    removew()
+    mainwindow()
+    itemVariable.set("")
+    quantityVar.set("")
+    rateVar.set("")
+    costVar.set("")
+    TotalVar.set("")
+    totalCostVar.set("")
+    t.set("")
+    t2.set("")
+    t3.set("")
+    t4.set("")
+    recieptV.delete(recieptV.get_children())
+#==============================exitf=====================================================
+def exitf():
+    exit=messagebox.askyesno("cafe's billing system","confirm if you want to exit")
+    if exit>0:
+        obj.destroy()
+    return
+
+#==============================working of button add item=================================
+def additemsf():
+    global nameVar
+    global rateVar2
+    global typeVar
+    global storeVar
+    name = nameVar.get()
+    rate = rateVar.get()
+    type = typeVar.get()
+    storetype = storeVar.get()
+    nameid=name.replace(" ","_")
+    conn = mysql.connector.connect(host="localhost", user="root", password="root", database="billing system")
+    mycursor = conn.cursor()
+    query = "INSERT INTO itemlist(name,nameid,rate,type,storetype) VALUES('{}','{}','{}','{}','{}')".format(name,nameid,rate,type,storetype)
+    mycursor.execute(query)
+    conn.commit()
+    conn.close()
+    nameVar.set("")
+    rateVar2.set("")
+    typeVar.set("")
+#====================================update item===========================================
+def updateitemf():
+    global nameVar
+    global rateVar2
+    global typeVar
+    global storeVar
+    global updateItemId
+    name = nameVar.get()
+    rate = rateVar.get()
+    type = typeVar.get()
+    storetype = storeVar.get()
+    conn = mysql.connector.connect(host="localhost", user="root", password="root", database="billing system")
+    mycursor = conn.cursor()
+    query = "UPDATE itemlist set name='{}',rate='{}',type='{}',storetype='{}' WHERE nameid='{}'".format(name,rate,type,storetype,updateItemId)
+    mycursor.execute(query)
+    conn.commit()
+    conn.close()
+    nameVar.set("")
+    rateVar2.set("")
+    typeVar.set("")
+    getitemlist()
+
+#============================login page==========================================
+def adminlogin():
+    title = Label(obj, text="Cafe's billing system", font=('arial', 40, 'bold'), relief=SUNKEN, bg='cadet blue', padx=227, bd=10, justify=CENTER)
+    title.grid(row=0, column=0)
+    login55 = Label(obj, text="Admin login", bg='light blue', font=('arial', 25, 'bold', 'underline'))
+    login55.place(x=380, y=155)
+    user80 = Label(obj, text="Username:", bg='light blue', font=('arial', 20))
+    user80.place(x=330, y=220)
+    t1 = Entry(obj, textvar=usernameVar)
+    t1.place(x=490, y=230)
+    password62 = Label(obj, text="Password: ", bg='light blue', font=('arial', 20))
+    password62.place(x=330, y=300)
+    t33 = Entry(obj, textvar=passwordVar, show="*")
+    t33.place(x=490, y=310)
+    login59 = Button(obj, text='login', width=20, height=2, font=('arial', 12, 'bold'), command=lambda: loginf())
+    login59.place(x=375, y=370)
+
+ #=================================new window======================================
+def mainwindow():
+    label = Label(obj, text="Customer Information:", bg="light blue", font=('arial', 12, 'bold'))
+    label.place(x=4, y=5)
+    f1 = Frame(obj, width=400, height=180, bd=14, relief=FLAT)
+    f1.place(x=4, y=28)
+    label2 = Label(f1, text="Name ", font=('arial', 13))
+    label2.grid(row=0, column=0, sticky=W)
+    t = Entry(f1, textvar=naVar)
+    t.grid(row=0, column=1)
+    label3 = Label(f1, text="Phone number", font=('arial', 13))
+    label3.grid(row=1, column=0, sticky=W)
+    t2 = Entry(f1, textvar=phoneVar)
+    t2.grid(row=1, column=1)
+    label4 = Label(f1, text="Address ", font=('arial', 13))
+    label4.grid(row=2, column=0, sticky=W)
+    t3 = Entry(f1, textvar=addVar)
+    t3.grid(row=2, column=1)
+    label5 = Label(f1, text="E-Mail", font=('arial', 13))
+    label5.grid(row=3, column=0, sticky=W)
+    t4 = Entry(f1, textvar=emailVar)
+    t4.grid(row=3, column=1)
+
+#==============================order info==========================================
+    label6 = Label(obj, text=" order Info:", bg="light blue", font=('arial', 12, 'bold'))
+    label6.place(x=285, y=5)
+    f2 = Frame(obj, width=400, height=180, bd=14, relief=FLAT)
+    f2.place(x=285, y=28)
+    label7 = Label(f2, text="select item", font=('arial', 13))
+    label7.grid(row=0,sticky=W)
+    combo = OptionMenu(f2, itemVariable, *options, command=menulistener)
+    combo.grid(row=0, column=1)
+    label8 = Label(f2, text="Quantity", font=('arial', 13))
+    label8.grid(row=1, sticky=W)
+    t12 = Entry(f2,textvar=quantityVar)
+    t12.grid(row=1,column=1)
+    label9 = Label(f2, text="Rate", font=('arial', 13))
+    label9.grid(row=2, sticky=W)
+    t11 = Entry(f2, textvar=rateVar)
+    t11.grid(row=2, column=1)
+    label10 = Label(f2, text="Cost", font=('arial', 13))
+    label10.grid(row=3, sticky=W)
+    t5 = Entry(f2, textvar=costVar)
+    t5.grid(row=3, column=1)
+    f3 = Frame(obj, width=300, height=320, bd=14, relief=FLAT)
+    f3.place(x=635, y=160)
+    receiptlabel = Label(obj, text="Receipt", font=('arial', 16, 'bold'), bg='light blue').place(x=635, y=130)
+    textreceipt = Text(f3, font=('arial',9), bg='white', width=40, height=21)
+    textreceipt.grid(row=0, column=0)
+
+#================================buttons=======================================
+    additems=Button(obj, text="Add Items", width=15, height=2, command=lambda: additembl()).place(x=540, y=28)
+    additems2 = Button(obj, text="Update Items", width=15, height=2, command=lambda: movetoupdate()).place(x=675, y=28)
+    additems3 = Button(obj, text="show entries", width=15, height=2, command=lambda:updatebl()).place(x=800, y=28)
+    additems4 = Button(obj, text="logout", width=15, height=2, command=lambda: logoutbl()).place(x=675, y=80)
+    additems5 = Button(obj, text="add to list", width=15, height=2, command=lambda: add_to_list()).place(x=540, y=80)
+    additems6 = Button(obj, text="exit", width=15, height=2, command=lambda: exitf()).place(x=800, y=80)
+    recieptV.place(x=8, y=190)
+    scrollbar = Scrollbar(obj, orient="vertical",command=recieptV.yview)
+    scrollbar.place(x=593, y=190)
+    recieptV.configure(yscrollcommand=scrollbar.set)
+    reset=Button(obj, text="reset", width=15, height=2, command=lambda: resetbl()).place(x=635, y=525)
+    receiptb = Button(obj, text="receipt", width=15, height=2, command=lambda: print_receipt()).place(x=790, y=525)
+    total=Label(obj, text="Total", font=('arial', 15), bg='light blue').place(x=350, y=530)
+    totalentery=Entry(obj, textvar=totalCostVar).place(x=410, y=535)
+    recieptV.heading('#0', text="Item Name")
+    recieptV.column('#0', minwidth=0, width=150)
+    recieptV.heading('#1', text="rate")
+    recieptV.column('#1', minwidth=0, width=150)
+    recieptV.heading('#2', text="quantity")
+    recieptV.column('#2', minwidth=0,width=150)
+    recieptV.heading('#3', text="cost")
+    recieptV.column('#3', minwidth=0, width=150)
+    updateTV()
+
+    def print_receipt():
+        global itemList
+        global totalCost
+        global t
+        textreceipt.delete("1.0", END)
+        textreceipt.insert(END, "=============receipt=============\n")
+        textreceipt.insert(END, "==========customer info===========\n")
+        textreceipt.insert(END, "Customer name:\n".format(naVar))
+        textreceipt.insert(END, "Phone no:\n".format(phoneVar))
+        textreceipt.insert(END, "Address:\n".format(addVar))
+        textreceipt.insert(END, "E mail:\n".format(emailVar))
+        textreceipt.insert(END, "=================================\n")
+        textreceipt.insert(END, "{:<25}{:<10}{:<15}{:<10}\n".format("name","rate","quantity","cost"))
+        textreceipt.insert(END, "=================================\n")
+        for item in itemList:
+            textreceipt.insert(END, "{:<25}{:<12}{:<17}{:<13}\n".format(item["name"], item["rate"], item["quantity"], item["cost"]))
+        textreceipt.insert(END,"==================================\n")
+        textreceipt.insert(END, "{:<25}{:<10}{:<15}{:<10}".format("totalCost", " ", " ", totalCost))
+        itemList = []
+        totalCost = 0.0
+        updateTV()
+        totalCostVar.set("{}".format(totalCost))
+
+#===============================addwindow====================================
+def add_items():
+    back34=Button(obj,text="Back",width=15,height=2,command=lambda:readalldata())
+    back34.place(x=2,y=2)
+    item = Label(obj, text="Add Items", font=('arial',20, 'bold','underline'), bg='light blue',padx=227, bd=10)
+    item.place(x=210,y=10)
+    nlabel = Label(obj, text="Name:", font=('arial', 20,), bg='light blue').place(x=140, y=100)
+    nentry = Entry(obj, textvar=nameVar).place(x=250, y=110)
+    nlabel2 = Label(obj,text="Rate:", font=('arial', 20,), bg='light blue').place(x=490, y=100)
+    nentry2 = Entry(obj, textvar=rateVar2).place(x=600, y=110)
+    nlabel3 = Label(obj, text="Type:", font=('arial', 20,), bg='light blue').place(x=140, y=150)
+    nentry3= Entry(obj, textvar=typeVar).place(x=250, y=160)
+    nlabel4 = Label(obj, text="Stored type:", font=('arial', 20,), bg='light blue').place(x=490, y=150)
+    additems = Button(obj, text="Add Items",font=('arial',10), width=15, height=2,command=lambda: additemsf()).place(x=430, y=250)
+    sentry=OptionMenu(obj, storeVar, *storeOptions).place(x=645, y=160)
+
+#==================================update items===========================================
+def update_items():
+    back = Button(obj,text="Back",width=15,height=2,command=lambda:readalldata())
+    back.place(x=2,y=2)
+    update = Label(obj, text="Update items", font=('arial', 20, 'bold', 'underline'), bg='light blue', padx=227, bd=10)
+    update.place(x=210,y=10)
+    label12 = Label(obj, text="Name:", font=('arial', 20,), bg='light blue')
+    label12.place(x=140, y=100)
+    entry00 = Entry(obj, textvar=nameVar)
+    entry00.place(x=250, y=110)
+    label23 = Label(obj, text="Rate:", font=('arial', 20,), bg='light blue')
+    label23.place(x=490, y=100)
+    naentry2 = Entry(obj, textvar=rateVar2).place(x=600, y=110)
+    nalabel3 = Label(obj, text="Type:", font=('arial', 20,), bg='light blue').place(x=140, y=150)
+    naentry3 = Entry(obj, textvar=typeVar).place(x=250, y=160)
+    nalabel4 = Label(obj, text="Stored type:", font=('arial', 20,), bg='light blue').place(x=490, y=150)
+    naentry4 = OptionMenu(obj,storeVar,*storeOptions).place(x=645,y=160)
+    additems = Button(obj, text="Update Items", font=('arial', 10), width=15, height=2,command=updateitemf()).place(x=430, y=210)
+    updateV.place(x=70, y=260)
+    scrollbar = Scrollbar(obj, orient="vertical", command=updateV.yview)
+    scrollbar.place(x=709, y=260)
+    recieptV.configure(yscrollcommand=scrollbar.set)
+    updateV.heading('#0', text="Item ID")
+    updateV.column('#0', minwidth=0, width=130)
+    updateV.heading('#1', text="Item Name")
+    updateV.column('#1', minwidth=0, width=130)
+    updateV.heading('#2', text="rate")
+    updateV.column('#2', minwidth=0, width=130)
+    updateV.heading('#3',text="type")
+    updateV.column('#3', minwidth=0, width=130)
+    updateV.heading('#4', text="stored type")
+    updateV.column('#4', minwidth=0, width=130)
+    getitemlist()
+#==========================================show menu==================================
+def showmenu():
+    back7 = Button(obj, text="Back", width=15, height=2, command=lambda:readalldata())
+    back7.place(x=2, y=2)
+    update45 = Label(obj, text="Update entries ", font=('arial', 20, 'bold', 'underline'), bg='light blue', padx=227, bd=10)
+    update45.place(x=210, y=10)
+    recieptV.place(x=170, y=160)
+    scrollbar = Scrollbar(obj,orient="vertical",command=updateV.yview)
+    scrollbar.place(x=815,y=160)
+    recieptV.configure(yscrollcommand=scrollbar.set)
+    recieptV.heading('#0', text="Item Name")
+    recieptV.heading('#1', text="rate")
+    recieptV.heading('#2', text="quantity")
+    recieptV.column('#2', minwidth=0, width=100)
+    recieptV.heading('#3', text="cost")
+    recieptV.column('#3', minwidth=0, width=160)
+    updatebilldata()
+adminlogin()
+obj.mainloop()
