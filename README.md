@@ -1,2 +1,2 @@
 # ReBi
-It is generally utilized by restaurants, hotels, food courts for management purposes such as bill generation, food ordering, data collection & a lot more activities.
+Utilized by restaurants and food courts for management purposes such as bill generation and data collection.
