@@ -1,2 +1,2 @@
-# ReBi
-Utilized by restaurants and food courts for management purposes such as bill generation and data collection.
+# ReBi - Restaurant Billing System
+Built a Tkinter-based application with MySQL backend for billing and record management.
